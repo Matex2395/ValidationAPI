@@ -1,0 +1,84 @@
+package com.fisa.validationapi.application.services;
+
+import com.fisa.validationapi.domain.models.IdempotencyRecord;
+import com.fisa.validationapi.domain.models.enums.IdempotencyStatus;
+import com.fisa.validationapi.domain.ports.out.IdempotencyRepositoryPort;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+
+import java.time.LocalDateTime;
+import java.util.Optional;
+
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class IdempotencyService {
+
+    private final IdempotencyRepositoryPort idempotencyRepository;
+
+    /**
+     * Intenta iniciar una transacción idempotente.
+     * * @param key La llave de idempotencia (x-idempotency-key).
+     * @return Optional vacío si es una petición nueva (SE PUEDE PROCESAR).
+     * Optional con IdempotencyRecord si ya existe (YA FUE PROCESADA o está en proceso).
+     * @throws RuntimeException Si Redis está caído (Fail-Safe: no procesar si no se puede bloquear).
+     */
+    public Optional<IdempotencyRecord> checkAndLock(String key) {
+        // Buscar si ya existe la llave
+        Optional<IdempotencyRecord> existingRecord = idempotencyRepository.findByKey(key);
+
+        if (existingRecord.isPresent()) {
+            log.info("Idempotency: Llave {} encontrada con estado {}", key, existingRecord.get().getStatus());
+            return existingRecord; // Devolver el registro existente indicando conflicto.
+        }
+
+        // Si no existe, se crea el bloqueo (Estado: PROCESSING)
+        log.info("Idempotency: Llave {} nueva. Bloqueando...", key);
+
+        IdempotencyRecord newRecord = IdempotencyRecord.builder()
+                .key(key)
+                .status(IdempotencyStatus.PROCESSING)
+                .createdAt(LocalDateTime.now())
+                .build();
+
+        // Guardar en Redis.
+        // Si Redis falla aquí, el Adapter lanzará excepción y el flujo se detendrá (Correcto).
+        idempotencyRepository.save(newRecord);
+
+        return Optional.empty(); // Indicar que se puede proseguir, pues no hay conflicto de idempotency-key.
+    }
+
+    /**
+     * Finaliza la transacción exitosamente guardando la respuesta.
+     */
+    public void saveSuccess(String key, int httpStatus, String responseBody) {
+        log.info("Idempotency: Actualizando llave {} a COMPLETED", key);
+
+        IdempotencyRecord record = IdempotencyRecord.builder()
+                .key(key)
+                .status(IdempotencyStatus.COMPLETED)
+                .httpStatusCode(httpStatus)
+                .responseBody(responseBody)
+                .createdAt(LocalDateTime.now())
+                .build();
+
+        idempotencyRepository.save(record);
+    }
+
+    /**
+     * Marca la transacción como fallida para permitir reintentos futuros (o bloquear según regla).
+     */
+    public void saveFailure(String key, String errorDetail) {
+        log.warn("Idempotency: Marcando llave {} como FAILED", key);
+
+        IdempotencyRecord record = IdempotencyRecord.builder()
+                .key(key)
+                .status(IdempotencyStatus.FAILED)
+                .responseBody(errorDetail) // Se guarda el error para auditoría
+                .createdAt(LocalDateTime.now())
+                .build();
+
+        idempotencyRepository.save(record);
+    }
+}
