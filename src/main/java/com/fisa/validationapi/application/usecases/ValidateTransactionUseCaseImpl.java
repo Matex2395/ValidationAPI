@@ -38,10 +38,15 @@ public class ValidateTransactionUseCaseImpl implements ValidateTransactionUseCas
             log.info("Validación ISO 20022 exitosa para idempotencyKey {}", idempotencyKey);
 
             // Llamada a Party Service Operation (OPEN FEIGN)
-            ResponseEntity<Object> response = partyServiceClient.createParty(jsonPayload);
+            ResponseEntity<String> response = partyServiceClient.createParty(jsonPayload);
 
             // Obtenemos el body de la respuesta del Party Service
-            String responseBody = response.getBody() != null ? response.getBody().toString() : "Success";
+            String responseBody = response.getBody();
+
+            if (responseBody == null) {
+                responseBody = "Success"; // Fallback simple
+            }
+
             int statusCode = response.getStatusCode().value();
 
             // ÉXITO: Actualizar Redis

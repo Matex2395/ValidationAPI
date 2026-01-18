@@ -1,6 +1,7 @@
 package com.fisa.validationapi.infrastructure.adapters.output.feign;
 
 import org.springframework.cloud.openfeign.FeignClient;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -21,6 +22,6 @@ public interface PartyServiceClient {
      * * @param partyJson El cuerpo del mensaje validado (JSON String).
      * @return La respuesta del servicio (uso de Object para ser genérico y no acoplarnse al modelo Party).
      */
-    @PostMapping("/bian-party/v1/parties")
-    ResponseEntity<Object> createParty(@RequestBody String partyJson);
+    @PostMapping(value = "/bian-party/v1/parties", consumes = MediaType.APPLICATION_JSON_VALUE)
+    ResponseEntity<String> createParty(@RequestBody String partyJson);
 }

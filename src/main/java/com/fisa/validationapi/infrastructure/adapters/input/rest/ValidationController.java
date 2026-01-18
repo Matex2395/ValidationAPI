@@ -7,6 +7,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.MDC;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -21,7 +22,7 @@ public class ValidationController {
     // Inyectar el Caso de Uso (Input Port)
     private final ValidateTransactionUseCase validateTransactionUseCase;
 
-    @PostMapping("/validate")
+    @PostMapping(value = "/validate", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> validateTransaction(
             @RequestHeader(value = "x-idempotency-key") String idempotencyKey,
             @RequestHeader(value = "x-fapi-interaction-id") String interactionId,
