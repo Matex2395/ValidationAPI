@@ -5,7 +5,11 @@ spring:
   application:
     name: validation-api
 
-  # Configuración de Redis
+party:
+  service:
+    url: http://localhost:8090
+
+  # Configuracion de Redis
   data:
     redis:
       host: localhost

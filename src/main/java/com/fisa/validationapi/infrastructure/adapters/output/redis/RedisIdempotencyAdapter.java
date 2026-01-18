@@ -11,7 +11,6 @@ import java.time.Duration;
 import java.util.Optional;
 
 @Slf4j
-@Repository
 @RequiredArgsConstructor
 public class RedisIdempotencyAdapter implements IdempotencyRepositoryPort {
 
