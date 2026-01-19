@@ -6,6 +6,7 @@ import com.fisa.validationapi.application.services.Iso20022ValidatorService;
 import com.fisa.validationapi.application.usecases.ValidateTransactionUseCaseImpl;
 import com.fisa.validationapi.domain.ports.in.ValidateTransactionUseCase;
 import com.fisa.validationapi.domain.ports.out.IdempotencyRepositoryPort;
+import com.fisa.validationapi.infrastructure.adapters.output.feign.NotificationClient;
 import com.fisa.validationapi.infrastructure.adapters.output.feign.PartyServiceClient;
 import com.fisa.validationapi.infrastructure.adapters.output.redis.RedisIdempotencyAdapter;
 import org.springframework.context.annotation.Bean;
@@ -60,12 +61,16 @@ public class ApplicationConfig {
     public ValidateTransactionUseCase validateTransactionUseCase(
             IdempotencyService idempotencyService,
             Iso20022ValidatorService isoValidatorService,
-            PartyServiceClient partyServiceClient
+            PartyServiceClient partyServiceClient,
+            NotificationClient notificationClient,
+            ObjectMapper objectMapper
     ) {
         return new ValidateTransactionUseCaseImpl(
                 idempotencyService,
                 isoValidatorService,
-                partyServiceClient
+                partyServiceClient,
+                notificationClient,
+                objectMapper
         );
     }
 }
