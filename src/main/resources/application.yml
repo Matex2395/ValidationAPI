@@ -1,24 +1,5 @@
-server:
-  port: 8095
-
 spring:
   application:
     name: validation-api
-
-party:
-  service:
-    url: http://localhost:8090
-
-# Configuracion de Redis
-data:
-  redis:
-    host: localhost
-    port: 6379
-    # password: TBD si es necesario
-    timeout: 2000ms
-
-# Logging para trazar acciones de Prowide y Redis
-logging:
-  level:
-    root: INFO
-    com.fisa.validationapi: DEBUG
+  config:
+    import: "optional:configserver:http://localhost:8888"
