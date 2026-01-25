@@ -107,6 +107,12 @@
             <artifactId>opentelemetry-exporter-otlp</artifactId>
         </dependency>
 
+        <!-- Micrometer Prometheus Registry -->
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-registry-prometheus</artifactId>
+        </dependency>
+
          <!-- Logstash Logback Encoder para emitir logs JSON y/o enviar a Logstash -->
         <dependency>
             <groupId>net.logstash.logback</groupId>
