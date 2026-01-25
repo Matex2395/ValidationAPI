@@ -1,0 +1,25 @@
+<configuration>
+  <springProperty scope="context" name="APP_NAME" source="spring.application.name"/>
+
+  <!-- para local -->
+  <property name="LOGSTASH_HOST" value="${LOGSTASH_HOST:-localhost}"/>
+  <property name="LOGSTASH_PORT" value="${LOGSTASH_PORT:-5000}"/>
+
+  <appender name="CONSOLE_JSON" class="ch.qos.logback.core.ConsoleAppender">
+    <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+      <customFields>{"service":"${APP_NAME}"}</customFields>
+    </encoder>
+  </appender>
+
+  <appender name="LOGSTASH" class="net.logstash.logback.appender.LogstashTcpSocketAppender">
+    <destination>${LOGSTASH_HOST}:${LOGSTASH_PORT}</destination>
+    <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+      <customFields>{"service":"${APP_NAME}"}</customFields>
+    </encoder>
+  </appender>
+
+  <root level="INFO">
+    <appender-ref ref="CONSOLE_JSON"/>
+    <appender-ref ref="LOGSTASH"/>
+  </root>
+</configuration>
