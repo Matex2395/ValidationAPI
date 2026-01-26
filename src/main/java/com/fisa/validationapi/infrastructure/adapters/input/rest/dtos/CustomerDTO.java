@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fisa.validationapi.domain.models.enums.GenderEnum;
 import com.fisa.validationapi.domain.models.enums.IdentityTypeEnum;
 import com.fisa.validationapi.infrastructure.adapters.input.rest.validation.AgeLimit;
+import com.fisa.validationapi.infrastructure.adapters.input.rest.validation.IsoCountry;
 import jakarta.validation.constraints.*;
 import lombok.Data;
 
@@ -44,6 +45,7 @@ public class CustomerDTO {
     @NotBlank(message = "El código de nacionalidad es obligatorio")
     @Size(min = 2, max = 2, message = "El código de nacionalidad debe estar compuesto exactamente por 2 caracteres")
     @Pattern(regexp = "^[a-zA-Z]+$", message = "El código de nacionalidad solo permite letras")
+    @IsoCountry(message = "El código de país no corresponde a un país válido (ISO 3166-1 alpha-2)")
     private String nationalityCode;
 
     // --- DEMOGRAFÍA ---
@@ -81,5 +83,6 @@ public class CustomerDTO {
     @NotBlank(message = "El código de país es obligatorio")
     @Size(min = 2, max = 2, message = "El código de país debe estar compuesto exactamente por 2 caracteres")
     @Pattern(regexp = "^[a-zA-Z]+$", message = "El código de país solo permite letras")
+    @IsoCountry(message = "El código de nacionalidad no corresponde a un país válido (ISO 3166-1 alpha-2)")
     private String countryCode;
 }
