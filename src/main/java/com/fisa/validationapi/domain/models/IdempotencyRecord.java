@@ -30,4 +30,7 @@ public class IdempotencyRecord implements Serializable {
 
     // Fecha de creación para auditoría
     private LocalDateTime createdAt;
+
+    // ID de la petición realizada originalmente (x-fapi-interaction-id)
+    private String originalInteractionId;
 }

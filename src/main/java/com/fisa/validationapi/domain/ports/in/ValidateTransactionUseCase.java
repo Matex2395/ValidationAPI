@@ -10,5 +10,5 @@ public interface ValidateTransactionUseCase {
      * 2. Validación ISO 20022.
      * 3. Guardado de resultados.
      */
-    IdempotencyRecord validateAndProcess(String idempotencyKey, String jsonPayload);
+    IdempotencyRecord validateAndProcess(String idempotencyKey, String jsonPayload, String interactionId);
 }

@@ -29,12 +29,23 @@ public class ValidateTransactionUseCaseImpl implements ValidateTransactionUseCas
     private final ObjectMapper objectMapper; // Permite leer el JSON de error del Mapper
 
     @Override
-    public IdempotencyRecord validateAndProcess(String idempotencyKey, String jsonPayload) {
+    public IdempotencyRecord validateAndProcess(String idempotencyKey, String jsonPayload, String interactionId) {
 
         // IDEMPOTENCIA
-        Optional<IdempotencyRecord> existing = idempotencyService.checkAndLock(idempotencyKey);
+        Optional<IdempotencyRecord> existing = idempotencyService.checkAndLock(idempotencyKey, interactionId);
         if (existing.isPresent()) {
-            return existing.get();
+            IdempotencyRecord record = existing.get();
+
+            // LÓGICA DE DETECCIÓN DE REINTENTO
+            // Si el UUID guardado es diferente al que llega ahora, es un reintento del cliente.
+            if (record.getOriginalInteractionId() != null && !record.getOriginalInteractionId().equals(interactionId)) {
+                log.warn("RETRY DETECTED [Key: {}]: Petición actual UUID {} es un reintento de la original UUID {}. Se devuelve respuesta en caché.",
+                        idempotencyKey, interactionId, record.getOriginalInteractionId());
+            } else {
+                log.info("IDEMPOTENCY HIT [Key: {}]: Replay exacto de UUID {}.", idempotencyKey, interactionId);
+            }
+
+            return record;
         }
 
         try {
@@ -55,6 +66,7 @@ public class ValidateTransactionUseCaseImpl implements ValidateTransactionUseCas
 
             return IdempotencyRecord.builder()
                     .key(idempotencyKey)
+                    .originalInteractionId(interactionId)
                     .status(IdempotencyStatus.COMPLETED)
                     .httpStatusCode(statusCode)
                     .responseBody(responseBody)

@@ -3,6 +3,8 @@ package com.fisa.validationapi.infrastructure.adapters.input.rest;
 import com.fisa.validationapi.domain.models.IdempotencyRecord;
 import com.fisa.validationapi.domain.models.enums.IdempotencyStatus;
 import com.fisa.validationapi.domain.ports.in.ValidateTransactionUseCase;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.MDC;
@@ -24,9 +26,18 @@ public class ValidationController {
 
     @PostMapping(value = "/validate", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> validateTransaction(
-            @RequestHeader(value = "x-idempotency-key") String idempotencyKey,
-            @RequestHeader(value = "x-fapi-interaction-id") String interactionId,
-            @RequestHeader(value = "Consent-ID") String consentId,
+            @RequestHeader(value = "x-idempotency-key")
+            @NotBlank(message = "x-idempotency-key no puede estar en blanco")
+            String idempotencyKey,
+
+            @RequestHeader(value = "x-fapi-interaction-id")
+            @Pattern(regexp = "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$", message = "x-fapi-interaction-id debe ser un UUID válido")
+            String interactionId,
+
+            @RequestHeader(value = "Consent-ID")
+            @NotBlank(message = "Consent-ID no puede estar en blanco")
+            String consentId,
+
             @RequestBody String jsonPayload
     ) {
         MDC.put("interactionId", interactionId);
@@ -37,12 +48,20 @@ public class ValidationController {
             validateHeaders(interactionId, consentId);
 
             // Llamada al Negocio (Caso de Uso)
-            IdempotencyRecord result = validateTransactionUseCase.validateAndProcess(idempotencyKey, jsonPayload);
+            IdempotencyRecord result = validateTransactionUseCase.validateAndProcess(idempotencyKey, jsonPayload, interactionId);
 
             // Mapeo de Respuesta (Domain -> HTTP)
             return switch (result.getStatus()) {
-                case COMPLETED, FAILED -> ResponseEntity.status(result.getHttpStatusCode()).body(result.getResponseBody());
-                case PROCESSING -> ResponseEntity.status(HttpStatus.CONFLICT).body("{\"error\": \"Request is currently being processed\"}");
+                case COMPLETED ->
+                    // Agregar un header-custom para avisar al cliente que es una respuesta cacheada.
+                    ResponseEntity.status(result.getHttpStatusCode())
+                            .header("X-Idempotency-Hit", "true")
+                            .body(result.getResponseBody());
+                case FAILED -> ResponseEntity.status(result.getHttpStatusCode()).body(result.getResponseBody());
+
+                // Si está PROCESSING, se devuelve el código HTTP 409 CONFLICT
+                case PROCESSING -> ResponseEntity.status(HttpStatus.CONFLICT)
+                        .body("{\"error\": \"La transacción está siendo procesada. Por favor espere.\"}");
             };
 
         } catch (IllegalArgumentException e) {

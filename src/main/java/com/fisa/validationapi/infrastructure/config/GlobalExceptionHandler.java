@@ -6,10 +6,12 @@ import com.fisa.validationapi.infrastructure.adapters.output.feign.NotificationC
 import com.fisa.validationapi.infrastructure.adapters.output.feign.dtos.NotificationRequest;
 import feign.FeignException;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.ConstraintViolationException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.MissingRequestHeaderException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
@@ -31,13 +33,12 @@ public class GlobalExceptionHandler {
         String origin = "Unknown";
         String detail = e.getMessage();
 
-        // INTENTO DE LEER EL JSON DEL CULPABLE
         try {
             if (e.contentUTF8() != null) {
-                // Magia: Convertimos el cuerpo del error (String) a nuestro objeto DTO
+                // Convertir el cuerpo del error (String) al objeto DTO
                 ErrorCustomResponse downstreamError = objectMapper.readValue(e.contentUTF8(), ErrorCustomResponse.class);
 
-                origin = downstreamError.getOrigin(); // ¡Ajá! Aquí sabemos si fue Mapper o Party
+                origin = downstreamError.getOrigin();
                 detail = downstreamError.getMessage();
 
                 log.info("Culpable identificado: {}", origin);
@@ -58,10 +59,24 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorCustomResponse> handleGeneralException(Exception e, HttpServletRequest request) {
         log.error("Error interno en ValidationAPI: {}", e.getMessage());
 
-        // Enviar correo culpándonos a nosotros mismos
+        // Enviar correo culpando a este microservicio
         sendErrorEmail("ValidationAPI", "Error Interno Crítico", e.getMessage());
 
         return buildResponse(HttpStatus.INTERNAL_SERVER_ERROR, "InternalServerError", e.getMessage(), request);
+    }
+
+    // 3. Captura cuando falta el header por completo (Capa Spring)
+    @ExceptionHandler(MissingRequestHeaderException.class)
+    public ResponseEntity<String> handleMissingHeader(MissingRequestHeaderException ex) {
+        String errorJson = String.format("{\"error\": \"Missing mandatory header: %s\"}", ex.getHeaderName());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorJson);
+    }
+
+    // 4. Captura cuando el header está vacío o en blanco (Capa @NotBlank)
+    @ExceptionHandler(ConstraintViolationException.class)
+    public ResponseEntity<String> handleValidationErrors(ConstraintViolationException ex) {
+        String errorJson = String.format("{\"error\": \"Validation failed: %s\"}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorJson);
     }
 
     // --- Métodos Helper ---
