@@ -1,6 +1,7 @@
 package com.fisa.validationapi.infrastructure.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.exc.InvalidFormatException;
 import com.fisa.validationapi.infrastructure.adapters.input.rest.dtos.ErrorCustomResponse;
 import com.fisa.validationapi.infrastructure.adapters.output.feign.NotificationClient;
 import com.fisa.validationapi.infrastructure.adapters.output.feign.dtos.NotificationRequest;
@@ -11,11 +12,13 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MissingRequestHeaderException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDate;
 
 @Slf4j
 @RestControllerAdvice
@@ -68,7 +71,7 @@ public class GlobalExceptionHandler {
     // 3. Captura cuando falta el header por completo (Capa Spring)
     @ExceptionHandler(MissingRequestHeaderException.class)
     public ResponseEntity<String> handleMissingHeader(MissingRequestHeaderException ex) {
-        String errorJson = String.format("{\"error\": \"Missing mandatory header: %s\"}", ex.getHeaderName());
+        String errorJson = String.format("{\"error\": \"Falta un campo de cabecera obligatorio: %s\"}", ex.getHeaderName());
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorJson);
     }
 
@@ -76,6 +79,34 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(ConstraintViolationException.class)
     public ResponseEntity<String> handleValidationErrors(ConstraintViolationException ex) {
         String errorJson = String.format("{\"error\": \"Validation failed: %s\"}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorJson);
+    }
+
+    // 5. Captura errores de formato JSON (Fechas mal formadas, Enums inválidos, tipos incorrectos)
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<String> handleJsonErrors(HttpMessageNotReadableException ex) {
+
+        String errorMessage = "Petición JSON malformada o con datos inválidos.";
+        Throwable cause = ex.getCause();
+
+        // Verificar si el error fue causado por un formato inválido (ej. Fecha o Enum)
+        if (cause instanceof InvalidFormatException) {
+            InvalidFormatException ife = (InvalidFormatException) cause;
+
+            // Si el error es en un campo tipo LocalDate (Fecha)
+            if (ife.getTargetType().equals(LocalDate.class)) {
+                String fieldName = ife.getPath().isEmpty() ? "unknown_field" : ife.getPath().get(0).getFieldName();
+                errorMessage = String.format("Formato de fecha inválido para campo '%s'. Formato esperado: dd-MM-yyyy (e.g., 25-01-2026)", fieldName);
+            }
+            // Si el error es en un ENUM (ej. GenderCode o IdentityType)
+            else if (ife.getTargetType().isEnum()) {
+                String fieldName = ife.getPath().isEmpty() ? "unknown_field" : ife.getPath().get(0).getFieldName();
+                errorMessage = String.format("Valor inválido para el campo '%s'. Los valores aceptados están definidos en el catálogo.", fieldName);
+            }
+        }
+
+        // Devolvemos el JSON bonito
+        String errorJson = String.format("{\"error\": \"Bad Request\", \"details\": \"%s\"}", errorMessage);
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorJson);
     }
 
