@@ -4,7 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fisa.validationapi.domain.models.IdempotencyRecord;
 import com.fisa.validationapi.domain.ports.in.ValidateTransactionUseCase;
-import com.fisa.validationapi.infrastructure.adapters.input.rest.dtos.CustomerDTO;
+import com.fisa.validationapi.infrastructure.adapters.input.rest.dtos.CustomerRequestDTO;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -43,14 +43,14 @@ public class ValidationController {
             String consentId,
 
             // CAMBIO: Solo se recibe el Objeto. Spring valida (@Valid) antes de entrar al código.
-            @Valid @RequestBody CustomerDTO customerDTO
+            @Valid @RequestBody CustomerRequestDTO customerRequestDTO
     ) {
         MDC.put("interactionId", interactionId);
         MDC.put("idempotencyKey", idempotencyKey);
 
         try {
             // 1. Convertir DTO a JSON String (Serialización manual)
-            String jsonPayload = objectMapper.writeValueAsString(customerDTO);
+            String jsonPayload = objectMapper.writeValueAsString(customerRequestDTO);
 
             // 2. Llamada al Negocio (Caso de Uso)
             IdempotencyRecord result = validateTransactionUseCase.validateAndProcess(idempotencyKey, jsonPayload, interactionId);
